@@ -1,118 +1,51 @@
-name: SLT Mobitel Sri Lanka VPS with Tmate
+name: SLT Sri Lanka VPS Setup
 
 on:
   workflow_dispatch:
-    inputs:
-      slt_vps_ip:
-        description: 'Your SLT VPS IP Address'
-        required: true
-        default: '112.134.175.24'  # Replace with actual SLT IP
-      slt_vps_port:
-        description: 'SSH Port'
-        required: true
-        default: '22'
-      slt_username:
-        description: 'SSH Username'
-        required: true
-        default: 'ubuntu'
 
 jobs:
-  setup-slt-sri-lanka-server:
+  setup-slt-vps:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
       
-    - name: Validate SLT Server Connection
-      continue-on-error: false
-      run: |
-        echo "🔍 Testing connection to SLT Mobitel Sri Lanka Server..."
-        echo "Server IP: ${{ github.event.inputs.slt_vps_ip }}"
-        echo "Location: Colombo, Sri Lanka"
-        
-        # Test if server is reachable
-        ping -c 3 ${{ github.event.inputs.slt_vps_ip }} || echo "⚠️ Server not pingable (firewall may block ICMP)"
-        
-        echo "✅ Connection test completed"
-        
-    - name: Connect to SLT Sri Lanka VPS and Setup
+    - name: Connect to Your SLT VPS and Install Tmate
       uses: appleboy/ssh-action@v0.1.5
       with:
-        host: ${{ github.event.inputs.slt_vps_ip }}
-        port: ${{ github.event.inputs.slt_vps_port }}
-        username: ${{ github.event.inputs.slt_username }}
-        key: ${{ secrets.SLT_SSH_KEY }}
+        host: 112.134.175.24
+        username: runner
+        password: 12345678
+        port: 22
         script: |
-          #!/bin/bash
-          
           echo "========================================="
-          echo "🇱🇰 SLT MOBITEL SRI LANKA VPS"
+          echo "🇱🇰 CONNECTED TO SLT SRI LANKA VPS"
           echo "========================================="
-          echo "Location: Colombo, Sri Lanka"
-          echo "Provider: SLT Mobitel"
+          echo "IP Address: 112.134.175.24"
+          echo "Username: runner"
+          echo "Location: Sri Lanka (SLT Fiber)"
           echo "Time: $(date)"
           echo "========================================="
           
           # Update system
-          echo "📦 Updating system packages..."
-          export DEBIAN_FRONTEND=noninteractive
+          echo "📦 Updating packages..."
           sudo apt-get update -y
-          sudo apt-get upgrade -y
           
-          # Set Sri Lanka timezone
-          echo "🕐 Setting Sri Lanka timezone..."
-          sudo timedatectl set-timezone Asia/Colombo
+          # Install tmate
+          echo "🔧 Installing tmate..."
+          sudo apt-get install -y software-properties-common
+          sudo apt-get update
+          sudo apt-get install -y tmate
           
-          # Install essential tools
-          echo "🔧 Installing essential tools..."
-          sudo apt-get install -y \
-            curl \
-            wget \
-            git \
-            htop \
-            net-tools \
-            software-properties-common \
-            apt-transport-https \
-            ca-certificates \
-            gnupg \
-            lsb-release
-          
-          # Install and setup tmate
-          echo "🔑 Installing tmate for remote access..."
-          
-          # Method 1: Install from official source
-          sudo apt-get install -y tmate || {
-            # Method 2: Build from source if package not available
-            echo "Building tmate from source..."
-            sudo apt-get install -y build-essential pkg-config libevent-dev libncurses-dev libmsgpack-dev libssh-dev
-            git clone https://github.com/tmate-io/tmate.git
-            cd tmate
-            ./autogen.sh
-            ./configure
-            make
-            sudo make install
-            cd ..
-          }
-          
-          # Verify tmate installation
+          # Verify installation
           echo "✅ Tmate version: $(tmate -V)"
           
-          # Generate SSH key if not exists
-          if [ ! -f ~/.ssh/id_rsa ]; then
-            echo "🔑 Generating SSH key..."
-            ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
-          fi
+          # Set Sri Lanka timezone
+          echo "🕐 Setting timezone..."
+          sudo timedatectl set-timezone Asia/Colombo
           
-          # Create tmate configuration for Sri Lanka
-          mkdir -p ~/.tmate
-          cat > ~/.tmate.conf << 'EOF'
-          # Tmate configuration for SLT Sri Lanka Server
-          set -g tmate-webhook-url "none"
-          set -g tmate-api-key "none"
-          EOF
-          
-          # Start tmate session
+          # Create tmate session
           echo "🚀 Starting tmate session..."
           
           # Kill any existing sessions
@@ -122,100 +55,39 @@ jobs:
           # Start new tmate session
           tmate -S /tmp/tmate.sock new-session -d
           
-          # Wait for session to initialize
-          echo "⏳ Waiting for tmate session to initialize..."
+          echo "⏳ Waiting for tmate session (10 seconds)..."
           sleep 10
           
           # Get connection strings
           TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null)
           TMATE_WEB=$(tmate -S /tmp/tmate.sock display -p '#{tmate_web}' 2>/dev/null)
-          TMATE_RO_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh_ro}' 2>/dev/null)
+          TMATE_RO=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh_ro}' 2>/dev/null)
           
-          # Save connection info
-          echo "$TMATE_SSH" > ~/tmate_ssh.txt
-          echo "$TMATE_WEB" > ~/tmate_web.txt
-          echo "$TMATE_RO_SSH" > ~/tmate_ro.txt
-          
-          # Get server information
-          PUBLIC_IP=$(curl -s ifconfig.me)
-          LOCAL_IP=$(hostname -I | awk '{print $1}')
-          
-          # Display connection information
           echo "========================================="
-          echo "✅ TMATE SESSION READY - SLT SRI LANKA"
+          echo "✅ TMATE SESSION READY"
           echo "========================================="
           echo ""
-          echo "📡 SERVER INFORMATION:"
-          echo "   Location: Colombo, Sri Lanka"
-          echo "   Provider: SLT Mobitel"
-          echo "   Public IP: $PUBLIC_IP"
-          echo "   Local IP: $LOCAL_IP"
-          echo "   Hostname: $(hostname)"
+          echo "📍 SERVER: SLT Sri Lanka VPS"
+          echo "📌 IP: 112.134.175.24"
           echo ""
-          echo "🔗 TMATE CONNECTIONS:"
+          echo "🔗 CONNECTION DETAILS:"
           echo "   SSH (Read-Write): $TMATE_SSH"
-          echo "   SSH (Read-Only):  $TMATE_RO_SSH"
+          echo "   SSH (Read-Only):  $TMATE_RO"
           echo "   Web Terminal:     $TMATE_WEB"
           echo ""
-          echo "💻 SYSTEM INFO:"
-          echo "   OS: $(lsb_release -d | cut -f2)"
-          echo "   Kernel: $(uname -r)"
-          echo "   CPU: $(nproc) cores"
-          echo "   Memory: $(free -h | grep Mem | awk '{print $2}')"
-          echo "   Disk: $(df -h / | awk 'NR==2 {print $2}')"
+          echo "📋 HOW TO CONNECT:"
+          echo "   1. Copy the SSH line above"
+          echo "   2. Paste in your terminal"
+          echo "   3. You'll get shell access"
           echo ""
-          echo "🇱🇰 SRI LANKA CONFIGURATION:"
-          echo "   Timezone: $(timedatectl | grep 'Time zone' | awk '{print $3}')"
-          echo "   Local Time: $(date)"
-          echo "   Language: $(locale | grep LANG)"
-          echo ""
-          echo "📁 SESSION FILES:"
-          echo "   SSH Info: ~/tmate_ssh.txt"
-          echo "   Web Info: ~/tmate_web.txt"
           echo "========================================="
           
-          # Create a status webpage
-          echo "📄 Creating status webpage..."
-          sudo apt-get install -y nginx
-          sudo tee /var/www/html/index.html > /dev/null << EOF
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <title>SLT Mobitel Sri Lanka VPS</title>
-              <style>
-                  body { font-family: Arial; margin: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-                  .container { max-width: 800px; margin: auto; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 10px; }
-                  h1 { color: #ffd700; }
-                  .info { background: rgba(0,0,0,0.3); padding: 20px; border-radius: 5px; }
-                  .flag { font-size: 24px; }
-              </style>
-          </head>
-          <body>
-              <div class="container">
-                  <h1>🇱🇰 SLT Mobitel Sri Lanka VPS</h1>
-                  <div class="info">
-                      <p><strong>Status:</strong> ✅ Active</p>
-                      <p><strong>Location:</strong> Colombo, Sri Lanka</p>
-                      <p><strong>Provider:</strong> SLT Mobitel</p>
-                      <p><strong>Public IP:</strong> $PUBLIC_IP</p>
-                      <p><strong>Local Time:</strong> $(date)</p>
-                      <p><strong>Tmate Session:</strong> Active</p>
-                      <p><strong>Web Terminal:</strong> <a href="$TMATE_WEB" style="color: #ffd700;">Click Here</a></p>
-                  </div>
-              </div>
-          </body>
-          </html>
-          EOF
+          # Keep session info
+          echo "$TMATE_SSH" > ~/tmate_ssh.txt
+          echo "$TMATE_WEB" > ~/tmate_web.txt
           
-          # Keep session alive
-          echo "🔄 Keeping tmate session alive..."
-          echo "Press Ctrl+C to disconnect (tmate will continue running)"
-          
-          # Display tmate status periodically
+          # Show server info every minute
           while true; do
+            echo "[$(date)] SLT VPS running - IP: 112.134.175.24"
             sleep 60
-            echo "[$(date)] Tmate session running on SLT Sri Lanka server"
-          done &
-          
-          # Wait indefinitely
-          wait
+          done
