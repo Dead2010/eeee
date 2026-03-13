@@ -12,42 +12,30 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4  # Updated to v4 (Node.js 20+ compatible)
+      uses: actions/checkout@v4
       
-    - name: Setup SSH Connection
-      id: ssh
+    - name: Install sshpass
       run: |
-        echo "🔌 Preparing SSH connection to SLT VPS..."
+        sudo apt-get update
+        sudo apt-get install -y sshpass
         
-        # Create SSH key file
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
-        
-    - name: Connect to SLT VPS via SSH
-      env:
-        SSH_PASSWORD: "12345678"
+    - name: Connect to SLT VPS and Setup Tmate
       run: |
         echo "========================================="
         echo "🇱🇰 CONNECTING TO SLT SRI LANKA VPS"
         echo "========================================="
         echo "IP Address: 112.134.175.24"
         echo "Username: runner"
+        echo "Password: 12345678"
         echo "Location: Sri Lanka (SLT Fiber)"
         echo "========================================="
         
-        # Install sshpass for password authentication
-        sudo apt-get update
-        sudo apt-get install -y sshpass
-        
-        # Connect and run commands
-        sshpass -p "12345678" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null runner@112.134.175.24 << 'EOF'
-          echo "========================================="
-          echo "✅ CONNECTED TO SLT VPS"
-          echo "========================================="
+        # Use sshpass to connect and run commands
+        sshpass -p "12345678" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null runner@112.134.175.24 "bash -s" << 'ENDSSH'
+          echo "✅ Connected to SLT VPS"
           echo "Hostname: $(hostname)"
           echo "IP: $(hostname -I)"
           echo "Time: $(date)"
-          echo "========================================="
           
           # Update system
           echo "📦 Updating packages..."
@@ -55,40 +43,39 @@ jobs:
           
           # Install tmate
           echo "🔧 Installing tmate..."
-          sudo apt-get install -y software-properties-common
-          sudo apt-get update
+          sudo apt-get install -y wget software-properties-common apt-transport-https
           
-          # Try different tmate installation methods
-          if ! command -v tmate &> /dev/null; then
-            echo "Installing tmate from alternative source..."
-            
-            # Method 1: Direct download
+          # Method 1: Try apt install
+          sudo apt-get install -y tmate || {
+            echo "Apt install failed, trying direct download..."
+            # Method 2: Direct download
             wget -q https://github.com/tmate-io/tmate/releases/download/2.4.0/tmate-2.4.0-static-linux-amd64.tar.xz
             tar -xf tmate-2.4.0-static-linux-amd64.tar.xz
             sudo mv tmate-2.4.0-static-linux-amd64/tmate /usr/local/bin/
             rm -rf tmate-2.4.0-static-linux-amd64*
-          fi
+          }
           
           # Verify installation
-          echo "✅ Tmate version: $(tmate -V 2>/dev/null || echo 'Installed')"
+          if command -v tmate &> /dev/null; then
+            echo "✅ Tmate installed successfully"
+          else
+            echo "❌ Tmate installation failed"
+            exit 1
+          fi
           
           # Set Sri Lanka timezone
-          echo "🕐 Setting timezone..."
+          echo "🕐 Setting Sri Lanka timezone..."
           sudo timedatectl set-timezone Asia/Colombo 2>/dev/null || sudo ln -sf /usr/share/zoneinfo/Asia/Colombo /etc/localtime
           
-          # Create tmate session
-          echo "🚀 Starting tmate session..."
-          
-          # Kill any existing sessions
+          # Kill any existing tmate sessions
           tmux kill-server 2>/dev/null || true
           rm -f /tmp/tmate.sock 2>/dev/null || true
           
-          # Start new tmate session
-          tmate -S /tmp/tmate.sock new-session -d || {
-            echo "Failed to start tmate, trying fallback..."
-            tmate -f /dev/null -S /tmp/tmate.sock new-session -d
-          }
+          # Start tmate session
+          echo "🚀 Starting tmate session..."
+          tmate -S /tmp/tmate.sock new-session -d
           
+          # Wait for session to initialize
           echo "⏳ Waiting for tmate session (15 seconds)..."
           sleep 15
           
@@ -100,52 +87,60 @@ jobs:
           # Get public IP
           PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "112.134.175.24")
           
+          # Save to file
+          cat > ~/tmate_info.txt << EOF
+=================================
+SLT SRI LANKA VPS CONNECTION INFO
+=================================
+Date: $(date)
+Local IP: 112.134.175.24
+Public IP: $PUBLIC_IP
+
+TMATE CONNECTIONS:
+SSH (RW): $TMATE_SSH
+SSH (RO): $TMATE_RO
+Web: $TMATE_WEB
+
+DIRECT SSH:
+ssh runner@112.134.175.24
+Password: 12345678
+=================================
+EOF
+          
+          # Display information
+          echo ""
           echo "========================================="
           echo "✅ TMATE SESSION READY"
           echo "========================================="
           echo ""
-          echo "📍 SERVER INFORMATION:"
-          echo "   Location: Colombo, Sri Lanka"
-          echo "   Provider: SLT Fiber"
-          echo "   Local IP: 112.134.175.24"
-          echo "   Public IP: $PUBLIC_IP"
+          echo "📍 SERVER: SLT Sri Lanka VPS"
+          echo "📌 Local IP: 112.134.175.24"
+          echo "🌍 Public IP: $PUBLIC_IP"
+          echo "🕐 Time: $(date)"
           echo ""
-          echo "🔗 CONNECTION DETAILS:"
+          echo "🔗 TMATE CONNECTIONS:"
           echo "   SSH (Read-Write): $TMATE_SSH"
           echo "   SSH (Read-Only):  $TMATE_RO"
           echo "   Web Terminal:     $TMATE_WEB"
           echo ""
-          echo "📋 ALTERNATIVE CONNECTIONS:"
-          echo "   Direct SSH: ssh runner@112.134.175.24"
+          echo "🔑 DIRECT SSH ACCESS:"
+          echo "   Command: ssh runner@112.134.175.24"
           echo "   Password: 12345678"
           echo ""
-          echo "💻 SYSTEM INFO:"
-          echo "   OS: $(lsb_release -d 2>/dev/null | cut -f2 || cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)"
-          echo "   Kernel: $(uname -r)"
-          echo "   Uptime: $(uptime -p)"
-          echo ""
+          echo "📁 Info saved to: ~/tmate_info.txt"
           echo "========================================="
-          echo "📝 SESSION SAVED TO: ~/tmate_info.txt"
-          echo "========================================="
-          
-          # Save session info
-          {
-            echo "SLT Sri Lanka VPS - $(date)"
-            echo "================================="
-            echo "SSH (RW): $TMATE_SSH"
-            echo "SSH (RO): $TMATE_RO"
-            echo "Web: $TMATE_WEB"
-            echo "Direct: ssh runner@112.134.175.24"
-          } > ~/tmate_info.txt
           
           # Keep session alive
           echo ""
           echo "🔄 Tmate session is running..."
           echo "Press Ctrl+C to disconnect (session continues on server)"
+          echo ""
           
-          # Monitor session
+          # Monitor loop
+          COUNTER=0
           while true; do
-            echo "[$(date)] ✅ SLT VPS active - 112.134.175.24"
+            COUNTER=$((COUNTER + 1))
+            echo "[$(date)] ✅ SLT VPS active - Session running for ${COUNTER} minutes"
             sleep 60
           done
-EOF
+ENDSSH
