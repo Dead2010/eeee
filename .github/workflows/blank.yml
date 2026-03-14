@@ -1,14 +1,17 @@
-name: Check SLT Connection
+name: Access Sri Lanka Device
 
 on: workflow_dispatch
 
 jobs:
-  check:
+  connect:
     runs-on: ubuntu-latest
     steps:
-      - name: Test connection
+      - name: Install ngrok
         run: |
-          echo "Testing connection to 112.134.175.24..."
-          ping -c 4 112.134.175.24 || echo "Ping failed"
-          nc -zv 112.134.175.24 22 || echo "Port 22 is closed"
-          curl -v telnet://112.134.175.24:22 || echo "Telnet failed"
+          # On your Sri Lanka PC, run this manually first:
+          # 1. Download ngrok from https://ngrok.com/download
+          # 2. Run: ngrok tcp 22
+          # 3. Copy the ngrok URL (e.g., 0.tcp.ngrok.io:12345)
+          
+          echo "Then use this workflow to connect:"
+          echo "ssh -p 12345 user@0.tcp.ngrok.io"
