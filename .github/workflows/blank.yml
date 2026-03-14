@@ -1,21 +1,14 @@
-name: SLT Sri Lanka VPS
+name: Check SLT Connection
 
-on:
-  workflow_dispatch:
+on: workflow_dispatch
 
 jobs:
-  setup-slt-vps:
+  check:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Install sshpass
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y sshpass
-        
-    - name: Connect to SLT VPS
-      run: |
-        sshpass -p "12345678" ssh -o StrictHostKeyChecking=no runner@112.134.175.24 "echo 'Connected'; sudo apt-get update -y; sudo apt-get install -y wget; wget -q https://github.com/tmate-io/tmate/releases/download/2.4.0/tmate-2.4.0-static-linux-amd64.tar.xz; tar -xf tmate-2.4.0-static-linux-amd64.tar.xz; sudo mv tmate-2.4.0-static-linux-amd64/tmate /usr/local/bin/; rm -rf tmate-2.4.0-static-linux-amd64*; tmate -S /tmp/tmate.sock new-session -d; sleep 10; TMATE_SSH=\$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'); TMATE_WEB=\$(tmate -S /tmp/tmate.sock display -p '#{tmate_web}'); echo '========================================='; echo '✅ SLT SRI LANKA VPS READY'; echo '========================================='; echo 'IP: 112.134.175.24'; echo \"SSH: \$TMATE_SSH\"; echo \"WEB: \$TMATE_WEB\"; echo '========================================='; while true; do sleep 60; echo \"Active: \$(date)\"; done"
+      - name: Test connection
+        run: |
+          echo "Testing connection to 112.134.175.24..."
+          ping -c 4 112.134.175.24 || echo "Ping failed"
+          nc -zv 112.134.175.24 22 || echo "Port 22 is closed"
+          curl -v telnet://112.134.175.24:22 || echo "Telnet failed"
